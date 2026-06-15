@@ -245,7 +245,7 @@ def montar_comentario(resultado):
             partes.append("O beta proximo de 1 sugere risco sistematico parecido com o mercado.")
 
     if wacc is not None:
-        partes.append(f"O WACC estimado foi {formatar_percentual(wacc)}, usando premissas informadas no formulario.")
+        partes.append(f"O WACC estimado foi {formatar_percentual(wacc)}, usando os valores inseridos.")
 
     partes.append(resultado["diagnostico_capital"])
     return " ".join(partes)

@@ -1,15 +1,15 @@
-# Analisador de Investimentos e Estrutura de Capital - UFMG
+# Analisador de Investimentos e Estrutura de Capital
 
-Projeto academico para a disciplina de Administracao Financeira (Sistemas de Informacao).
+Projeto acadêmico para a disciplina de Administracao Financeira.
 
 O sistema expande o Trabalho 1 e continua usando dados reais do Yahoo Finance via `yfinance`, mas agora tambem cobre temas da segunda metade do curso:
 
 - Gestao de Investimentos;
-- CAPM e risco sistematico;
+- CAPM e risco sistemático;
 - Estrutura de Capital;
-- custo medio ponderado de capital (WACC);
-- diagnostico de alavancagem e endividamento;
-- resumo consolidado da analise na propria pagina.
+- Custo medio ponderado de capital (WACC);
+- Diagnostico de alavancagem e endividamento;
+- Resumo consolidado da analise na propria pagina.
 
 ## Alunos
 
@@ -21,11 +21,11 @@ Bianca Gabriela Franco e Silva - 2020092756
 
 ### 1. Requisitos
 
-Python instalado na maquina.
+Python instalado na máquina.
 
-Conexao ativa com a internet, necessaria para buscar dados reais no Yahoo Finance.
+Conexao ativa com a internet, necessária para buscar dados reais no Yahoo Finance.
 
-### 2. Instalacao
+### 2. Instalação
 
 Dentro da pasta principal do projeto, execute:
 
@@ -34,7 +34,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Execucao
+### 3. Execução
 
 Inicie o servidor local:
 
@@ -62,7 +62,7 @@ O sistema normaliza automaticamente tickers brasileiros comuns para o sufixo `.S
 
 ### Analise de carteira
 
-Digite varios tickers separados por espaco, virgula ou ponto e virgula:
+Digite varios tickers separados por espaço, vírgula ou ponto e vírgula:
 
 ```text
 PETR4 VALE3 ITUB4
@@ -80,47 +80,47 @@ Se os pesos ficarem em branco, o sistema assume pesos iguais.
 
 Alguns dados financeiros usados em CAPM e WACC nao sao fornecidos de forma completa pelo Yahoo Finance. Por isso, o sistema permite configurar:
 
-- taxa livre de risco;
-- premio de risco de mercado;
-- aliquota de imposto;
-- custo da divida;
-- periodo historico usado nos retornos.
+- Taxa livre de risco;
+- Premio de risco de mercado;
+- Alíquota de imposto;
+- Custo da dívida;
+- Periodo histórico usado nos retornos.
 
-Essas premissas aparecem no resumo da analise para deixar claro o que veio da API e o que foi definido pelo modelo academico.
+Essas premissas aparecem no resumo da análise para deixar claro o que veio da API e o que foi definido pelo modelo acadêmico.
 
 ## Indicadores Gerados
 
 ### Gestao de Investimentos
 
-- retorno historico anualizado;
-- volatilidade anualizada;
-- beta calculado contra benchmark;
-- retorno exigido pelo CAPM;
+- Retorno historico anualizado;
+- Volatilidade anualizada;
+- Beta calculado contra benchmark;
+- Retorno exigido pelo CAPM;
 - P/L, P/VP e dividend yield;
-- classificacao academica de atratividade.
+- Classificação academica de atratividade.
 
 ### Estrutura de Capital
 
-- divida bruta;
-- divida liquida;
-- divida/patrimonio;
-- divida/valor de mercado;
-- divida liquida/EBITDA;
-- cobertura de juros, quando disponivel;
-- pesos de capital proprio e divida;
+- Divida bruta;
+- Divida liquida;
+- Divida/patrimonio;
+- Divida/valor de mercado;
+- Divida liquida/EBITDA;
+- Cobertura de juros, quando disponivel;
+- Pesos de capital proprio e divida;
 - WACC estimado.
 
 ### Indicadores herdados do Trabalho 1
 
-- liquidez corrente;
-- liquidez seca;
-- capital de giro;
-- margens;
+- Liquidez corrente;
+- Liquidez seca;
+- Capital de giro;
+- Margens;
 - ROA;
 - ROE;
-- analise DuPont;
-- fluxo de caixa livre.
+- Analise DuPont;
+- Fluxo de caixa livre.
 
-## Observacao
+## Observação
 
-Este sistema e um projeto academico e nao constitui recomendacao real de investimento. Os dados sao obtidos de fontes publicas via Yahoo Finance/yfinance e podem conter atrasos, lacunas ou diferencas de classificacao contabil entre empresas e mercados.
+Este sistema e um projeto acadÊmico e não constitui recomendacao real de investimento. Os dados sao obtidos de fontes públicas via Yahoo Finance/yfinance e podem conter atrasos, lacunas ou diferenças de classificação contábil entre empresas e mercados.
