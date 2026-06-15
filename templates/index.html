@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Analisador de Investimentos e Estrutura de Capital - SI UFMG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f5f7fb;
+            color: #202733;
+        }
+
+        .app-shell {
+            max-width: 1180px;
+        }
+
+        .metric {
+            border: 1px solid #d9e0ea;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 14px;
+            min-height: 92px;
+        }
+
+        .metric-label {
+            color: #667085;
+            font-size: 0.82rem;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .report-card {
+            border: 1px solid #d9e0ea;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .badge-risk {
+            font-size: 0.78rem;
+        }
+
+        .ticker-search {
+            position: relative;
+        }
+
+        .ticker-suggestions {
+            position: absolute;
+            z-index: 1000;
+            top: 100%;
+            right: 0;
+            left: 0;
+            max-height: 260px;
+            margin-top: 4px;
+            overflow-y: auto;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            box-shadow: 0 8px 20px rgba(32, 39, 51, 0.12);
+        }
+
+        .ticker-suggestion {
+            width: 100%;
+            padding: 10px 12px;
+            border: 0;
+            border-bottom: 1px solid #edf0f4;
+            background: #ffffff;
+            color: #202733;
+            text-align: left;
+        }
+
+        .ticker-suggestion:last-child {
+            border-bottom: 0;
+        }
+
+        .ticker-suggestion:hover,
+        .ticker-suggestion.active {
+            background: #eef4ff;
+        }
+
+        .ticker-symbol {
+            font-weight: 700;
+        }
+
+        .ticker-description {
+            display: block;
+            color: #667085;
+            font-size: 0.82rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container app-shell py-4">
+        <header class="mb-4">
+            <p class="text-uppercase text-secondary fw-semibold mb-1">Administracao Financeira - Trabalho 2</p>
+            <h1 class="h2 mb-2">Sistema de Apoio a Analise de Investimentos e Estrutura de Capital</h1>
+            <p class="text-secondary mb-0">
+                Dados capturados do Yahoo Finance via yfinance, com calculos academicos de retorno, risco, CAPM, WACC e alavancagem.
+            </p>
+        </header>
+
+        <section class="report-card shadow-sm mb-4">
+            <div class="p-4">
+                <form method="POST" class="row g-3">
+                    <div class="col-lg-8">
+                        <label for="tickerInput" class="form-label fw-semibold">Ticker(s)</label>
+                        <div class="ticker-search">
+                            <input type="text" id="tickerInput" name="ticker" class="form-control"
+                                   placeholder="Ex: PETR4, VALE3, ITUB4 ou AAPL MSFT NVDA"
+                                   value="{{ tickers_digitados }}" autocomplete="off"
+                                   oninput="debounceSearch()" onkeydown="handleSuggestionKeys(event)" required>
+                            <div id="tickerSuggestions" class="ticker-suggestions" hidden></div>
+                        </div>
+                        <div class="form-text">Separe varios tickers por espaco, virgula ou ponto e virgula.</div>
+                        <div id="loading" class="form-text text-muted" style="display:none;">Buscando sugestoes...</div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <label for="weightsInput" class="form-label fw-semibold">Pesos da carteira</label>
+                        <input type="text" id="weightsInput" name="weights" class="form-control"
+                               placeholder="Opcional: 50 30 20" value="{{ pesos_digitados }}">
+                        <div class="form-text">Use percentuais ou decimais. Em branco = pesos iguais.</div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Taxa livre de risco (% a.a.)</label>
+                        <input type="number" step="0.01" name="risk_free_rate" class="form-control"
+                               value="{{ form_premissas.risk_free_rate }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Premio de mercado (% a.a.)</label>
+                        <input type="number" step="0.01" name="market_premium" class="form-control"
+                               value="{{ form_premissas.market_premium }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Aliquota de imposto (%)</label>
+                        <input type="number" step="0.01" name="tax_rate" class="form-control"
+                               value="{{ form_premissas.tax_rate }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Custo da divida (% a.a.)</label>
+                        <input type="number" step="0.01" name="cost_of_debt" class="form-control"
+                               value="{{ form_premissas.cost_of_debt }}">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Historico usado</label>
+                        <select name="history_period" class="form-select">
+                            <option value="1y" {% if form_premissas.history_period == "1y" %}selected{% endif %}>1 ano</option>
+                            <option value="2y" {% if form_premissas.history_period == "2y" %}selected{% endif %}>2 anos</option>
+                            <option value="5y" {% if form_premissas.history_period == "5y" %}selected{% endif %}>5 anos</option>
+                            <option value="10y" {% if form_premissas.history_period == "10y" %}selected{% endif %}>10 anos</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-8 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary px-4">Analisar</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        {% if erro %}
+            <div class="alert alert-warning shadow-sm border-warning">{{ erro }}</div>
+        {% endif %}
+
+        {% if resultado %}
+            <main>
+                <section class="report-card shadow-sm mb-4">
+                    <div class="p-4 border-bottom">
+                        <div class="d-flex flex-wrap justify-content-between gap-3">
+                            <div>
+                                <p class="text-uppercase text-secondary fw-semibold mb-1">Resumo da analise</p>
+                                <h2 class="h4 mb-1">Carteira analisada: {{ resultado.tickers | join(", ") }}</h2>
+                                <p class="text-secondary mb-0">Benchmark: {{ resultado.benchmark }}</p>
+                            </div>
+                            <div class="text-md-end">
+                                <p class="mb-1"><strong>Fonte:</strong> Yahoo Finance</p>
+                                <p class="mb-0"><strong>Modelo:</strong> CAPM + WACC simplificado</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4 col-lg-2">
+                                <div class="metric">
+                                    <div class="metric-label">Retorno historico</div>
+                                    <div class="metric-value">{{ resultado.resumo.retorno_carteira }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-lg-2">
+                                <div class="metric">
+                                    <div class="metric-label">Volatilidade</div>
+                                    <div class="metric-value">{{ resultado.resumo.volatilidade_carteira }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-lg-2">
+                                <div class="metric">
+                                    <div class="metric-label">Beta ponderado</div>
+                                    <div class="metric-value">{{ resultado.resumo.beta_carteira }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-lg-2">
+                                <div class="metric">
+                                    <div class="metric-label">Retorno exigido</div>
+                                    <div class="metric-value">{{ resultado.resumo.retorno_exigido_carteira }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-lg-2">
+                                <div class="metric">
+                                    <div class="metric-label">WACC medio</div>
+                                    <div class="metric-value">{{ resultado.resumo.wacc_medio }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-lg-2">
+                                <div class="metric">
+                                    <div class="metric-label">Correlacao media</div>
+                                    <div class="metric-value">{{ resultado.resumo.correlacao_media }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-primary mb-0">
+                            <strong>Comentario automatico:</strong> {{ resultado.comentario }}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="report-card shadow-sm mb-4">
+                    <div class="p-4">
+                        <h3 class="section-title">Premissas do modelo</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Taxa livre de risco</th>
+                                        <th>Premio de mercado</th>
+                                        <th>Aliquota de imposto</th>
+                                        <th>Custo da divida</th>
+                                        <th>Historico</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>{{ "%.2f"|format(resultado.premissas.risk_free_rate * 100) }}%</td>
+                                        <td>{{ "%.2f"|format(resultado.premissas.market_premium * 100) }}%</td>
+                                        <td>{{ "%.2f"|format(resultado.premissas.tax_rate * 100) }}%</td>
+                                        <td>{{ "%.2f"|format(resultado.premissas.cost_of_debt * 100) }}%</td>
+                                        <td>{{ resultado.premissas.history_period }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-secondary small mt-3 mb-0">
+                            Essas premissas substituem dados macroeconomicos ou de credito que nao sao fornecidos de forma completa pelo Yahoo Finance.
+                        </p>
+                    </div>
+                </section>
+
+                {% for empresa in resultado.empresas %}
+                    <section class="report-card shadow-sm mb-4">
+                        <div class="p-4 border-bottom">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                                <div>
+                                    <h3 class="h5 mb-1">{{ empresa.nome }}</h3>
+                                    <p class="text-secondary mb-0">{{ empresa.ticker }} | {{ empresa.setor }} | {{ empresa.industria }}</p>
+                                </div>
+                                {% if empresa.classificacao == "Atrativa" %}
+                                    <span class="badge text-bg-success badge-risk">{{ empresa.classificacao }}</span>
+                                {% elif empresa.classificacao == "Neutra/Moderada" %}
+                                    <span class="badge text-bg-warning badge-risk">{{ empresa.classificacao }}</span>
+                                {% else %}
+                                    <span class="badge text-bg-danger badge-risk">{{ empresa.classificacao }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="p-4">
+                            <div class="row g-4">
+                                <div class="col-lg-6">
+                                    <h4 class="section-title">Gestao de investimentos</h4>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tr><td>Preco atual</td><td><strong>{{ empresa.preco_atual }}</strong></td></tr>
+                                            <tr><td>Retorno historico anualizado</td><td><strong>{{ empresa.retorno_anualizado }}</strong></td></tr>
+                                            <tr><td>Volatilidade anualizada</td><td><strong>{{ empresa.volatilidade_anualizada }}</strong></td></tr>
+                                            <tr><td>Beta calculado contra {{ empresa.benchmark }}</td><td><strong>{{ empresa.beta_calculado }}</strong></td></tr>
+                                            <tr><td>Beta Yahoo</td><td><strong>{{ empresa.beta_yahoo }}</strong></td></tr>
+                                            <tr class="table-primary"><td><strong>Retorno exigido pelo CAPM</strong></td><td><strong>{{ empresa.retorno_exigido }}</strong></td></tr>
+                                            <tr><td>P/L</td><td><strong>{{ empresa.pl }}</strong></td></tr>
+                                            <tr><td>P/VP</td><td><strong>{{ empresa.pvp }}</strong></td></tr>
+                                            <tr><td>Dividend yield</td><td><strong>{{ empresa.dividend_yield }}</strong></td></tr>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6">
+                                    <h4 class="section-title">Estrutura de capital</h4>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tr><td>Valor de mercado</td><td><strong>{{ empresa.valor_mercado }}</strong></td></tr>
+                                            <tr><td>Divida bruta</td><td><strong>{{ empresa.divida_total }}</strong></td></tr>
+                                            <tr><td>Divida liquida</td><td><strong>{{ empresa.divida_liquida }}</strong></td></tr>
+                                            <tr><td>Divida / patrimonio</td><td><strong>{{ empresa.divida_patrimonio }}</strong></td></tr>
+                                            <tr><td>Divida / valor de mercado</td><td><strong>{{ empresa.divida_valor_mercado }}</strong></td></tr>
+                                            <tr><td>Divida liquida / EBITDA</td><td><strong>{{ empresa.divida_ebitda }}</strong></td></tr>
+                                            <tr><td>Cobertura de juros</td><td><strong>{{ empresa.cobertura_juros }}</strong></td></tr>
+                                            <tr><td>Peso capital proprio</td><td><strong>{{ empresa.peso_capital_proprio }}</strong></td></tr>
+                                            <tr><td>Peso divida</td><td><strong>{{ empresa.peso_divida }}</strong></td></tr>
+                                            <tr class="table-primary"><td><strong>WACC estimado</strong></td><td><strong>{{ empresa.wacc }}</strong></td></tr>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6">
+                                    <h4 class="section-title">Indicadores do Trabalho 1</h4>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tr><td>Liquidez corrente</td><td><strong>{{ empresa.liq_corrente }}</strong></td></tr>
+                                            <tr><td>Liquidez seca</td><td><strong>{{ empresa.liq_seca }}</strong></td></tr>
+                                            <tr><td>Capital de giro</td><td><strong>{{ empresa.capital_giro }}</strong></td></tr>
+                                            <tr><td>Margem liquida</td><td><strong>{{ empresa.margem_liquida }}</strong></td></tr>
+                                            <tr><td>ROA</td><td><strong>{{ empresa.roa }}</strong></td></tr>
+                                            <tr><td>ROE</td><td><strong>{{ empresa.roe }}</strong></td></tr>
+                                            <tr><td>ROE DuPont</td><td><strong>{{ empresa.roe_dupont }}</strong></td></tr>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6">
+                                    <h4 class="section-title">Fluxo de caixa e diagnostico</h4>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tr><td>Fluxo operacional</td><td><strong>{{ empresa.fluxo_operacional }}</strong></td></tr>
+                                            <tr><td>CapEx</td><td><strong>{{ empresa.capex }}</strong></td></tr>
+                                            <tr><td>Fluxo de caixa livre</td><td><strong>{{ empresa.fluxo_caixa_livre }}</strong></td></tr>
+                                            <tr><td>Margem FCF</td><td><strong>{{ empresa.margem_fcf }}</strong></td></tr>
+                                        </table>
+                                    </div>
+                                    <div class="alert alert-secondary mb-0">
+                                        <strong>Diagnostico:</strong> {{ empresa.comentario }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                {% endfor %}
+            </main>
+        {% endif %}
+
+        <footer class="mt-5 py-3 border-top text-center text-muted">
+            <p class="small mb-0">
+                Aviso: este sistema e um projeto academico. Os dados sao extraidos de fontes publicas via Yahoo Finance/yfinance
+                e podem apresentar atrasos, lacunas ou diferencas de classificacao contabil. A analise nao constitui recomendacao real de investimento.
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        let timer;
+        let suggestionItems = [];
+        let activeSuggestion = -1;
+        let searchRequest = 0;
+
+        function getCurrentTickerFragment(value) {
+            const match = value.match(/(?:^|[,;\s])([^,;\s]*)$/);
+            return match ? match[1].trim() : "";
+        }
+
+        function closeSuggestions() {
+            searchRequest += 1;
+            const suggestions = document.getElementById('tickerSuggestions');
+            suggestions.hidden = true;
+            suggestions.innerHTML = "";
+            suggestionItems = [];
+            activeSuggestion = -1;
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function selectSuggestion(symbol) {
+            const input = document.getElementById('tickerInput');
+            const value = input.value;
+            const separatorIndex = Math.max(
+                value.lastIndexOf(','),
+                value.lastIndexOf(';'),
+                value.lastIndexOf(' ')
+            );
+
+            const prefix = separatorIndex >= 0
+                ? value.slice(0, separatorIndex + 1).replace(/\s*$/, " ")
+                : "";
+
+            input.value = `${prefix}${symbol}, `;
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+            closeSuggestions();
+        }
+
+        function renderSuggestions(data) {
+            const suggestions = document.getElementById('tickerSuggestions');
+            suggestions.innerHTML = "";
+            suggestionItems = data.filter(item => item.symbol).slice(0, 8);
+            activeSuggestion = -1;
+
+            if (!suggestionItems.length) {
+                closeSuggestions();
+                return;
+            }
+
+            suggestionItems.forEach(item => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'ticker-suggestion';
+
+                const symbol = document.createElement('span');
+                symbol.className = 'ticker-symbol';
+                symbol.textContent = item.symbol;
+
+                const description = document.createElement('span');
+                description.className = 'ticker-description';
+                const companyName = item.shortname || item.longname || '';
+                description.textContent = `${companyName}${item.exchange ? ` (${item.exchange})` : ''}`;
+
+                button.append(symbol, description);
+                button.addEventListener('mousedown', event => {
+                    event.preventDefault();
+                    selectSuggestion(item.symbol);
+                });
+                suggestions.appendChild(button);
+            });
+
+            suggestions.hidden = false;
+        }
+
+        function updateActiveSuggestion() {
+            document.querySelectorAll('.ticker-suggestion').forEach((item, index) => {
+                item.classList.toggle('active', index === activeSuggestion);
+            });
+        }
+
+        function handleSuggestionKeys(event) {
+            if (!suggestionItems.length) return;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                activeSuggestion = (activeSuggestion + 1) % suggestionItems.length;
+                updateActiveSuggestion();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                activeSuggestion = (activeSuggestion - 1 + suggestionItems.length) % suggestionItems.length;
+                updateActiveSuggestion();
+            } else if (event.key === 'Enter' && activeSuggestion >= 0) {
+                event.preventDefault();
+                selectSuggestion(suggestionItems[activeSuggestion].symbol);
+            } else if (event.key === 'Escape') {
+                closeSuggestions();
+            }
+        }
+
+        function debounceSearch() {
+            clearTimeout(timer);
+            const requestId = ++searchRequest;
+            timer = setTimeout(async () => {
+                const input = document.getElementById('tickerInput');
+                const q = getCurrentTickerFragment(input.value);
+                if (q.length < 2) {
+                    closeSuggestions();
+                    return;
+                }
+
+                document.getElementById('loading').style.display = 'block';
+                try {
+                    const res = await fetch(`/search_proxy?q=${encodeURIComponent(q)}`);
+                    const data = await res.json();
+                    if (requestId === searchRequest && q === getCurrentTickerFragment(input.value)) {
+                        renderSuggestions(data);
+                    }
+                } catch (error) {
+                    if (requestId === searchRequest) {
+                        closeSuggestions();
+                    }
+                } finally {
+                    if (requestId === searchRequest) {
+                        document.getElementById('loading').style.display = 'none';
+                    }
+                }
+            }, 500);
+        }
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.ticker-search')) {
+                closeSuggestions();
+            }
+        });
+    </script>
+</body>
+</html>
